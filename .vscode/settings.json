@@ -1,0 +1,16 @@
+{
+  "python.analysis.stubPath": "C:\\Users\\trouvaille-2\\.kendryte\\k230_canmv_pylance\\9053a75e3561f850\\typings",
+  "idf.currentSetup": "D:\\ESP\\.espressif\\v5.4.4\\esp-idf",
+  "idf.openOcdConfigs": [
+    "board/esp32s3-builtin.cfg"
+  ],
+  "idf.customExtraVars": {},
+  "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-18.1.2_20240912\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=d:\\Desktop\\code\\软件pid\\build"
+  ],
+  "cmake.sourceDirectory": "D:/Desktop/code/pid demo/sample_project",
+  "idf.portWin": "COM4"
+}
