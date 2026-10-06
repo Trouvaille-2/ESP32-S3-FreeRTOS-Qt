@@ -1,8 +1,7 @@
 #include <stdio.h>
-#include "myuart.h"
+#include "app.h"
 
 void app_main(void)
 {
-    uart_init();
+    app_init();
 }
-

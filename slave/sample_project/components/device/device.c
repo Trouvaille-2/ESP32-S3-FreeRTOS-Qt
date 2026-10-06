@@ -14,7 +14,7 @@ void device_init_regs(void)
     device_regs[REG_SYS_STATUS] = 0; 
     device_regs[REG_ERR_CODE] = 0; /* 默认正常 */
 
-    device_write_int32(REG_TARGET_POS_H, 0); /* 默认目标位置为 0 */
+    device_reg_write_int32(REG_TARGET_POS_H, 0); /* 默认目标位置为 0 */
 
     /* 初始化 外环PID 参数默认值 */
     device_regs[REG_POS_KP] = 200; /* 位置环 Kp = 2.00 */
@@ -50,13 +50,13 @@ void device_reg_write(int reg, uint16_t val)
 }
 
 /* 32 位整型 (位置脉冲) 便捷读写辅助函数 */
-uint32_t device_reg_read_int32(int reg_high)
+int32_t device_reg_read_int32(int reg_high)
 {
     if(reg_high>=0 && (reg_high+1)<NUM_REGS)
     {
         uint16_t h = device_regs[reg_high];
         uint16_t l = device_regs[reg_high+1];
-        return (((uint32_t)h)<<16) |l;
+        return (int32_t)((((uint32_t)h)<<16) | l);
     }
     return 0;
 }
