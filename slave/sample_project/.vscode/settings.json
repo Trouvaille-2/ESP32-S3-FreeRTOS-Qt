@@ -22,7 +22,6 @@
   "idf.openOcdConfigs": [
     "board/esp32-wrover-kit-3.3v.cfg"
   ],
-  "idf.portWin": "detect",
   "idf.currentSetup": "D:\\ESP\\.espressif\\v5.4.4\\esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32"
@@ -33,5 +32,5 @@
     "--query-driver=**",
     "--compile-commands-dir=d:\\Desktop\\code\\软件pid\\sample_project\\build"
   ],
-  "python.analysis.stubPath": "C:\\Users\\trouvaille-2\\.kendryte\\k230_canmv_pylance\\dc89fd7079d52dc0\\typings"
+  "python.analysis.stubPath": "C:\\Users\\trouvaille-2\\.kendryte\\k230_canmv_pylance\\419efeb5f21465c0\\typings"
 }

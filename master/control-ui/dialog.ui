@@ -55,10 +55,10 @@
   <widget class="QLabel" name="lblStatus">
    <property name="geometry">
     <rect>
-     <x>130</x>
+     <x>90</x>
      <y>180</y>
-     <width>131</width>
-     <height>16</height>
+     <width>211</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="text">

@@ -71,7 +71,7 @@ public:
 
         lblStatus = new QLabel(Dialog);
         lblStatus->setObjectName(QStringLiteral("lblStatus"));
-        lblStatus->setGeometry(QRect(130, 180, 131, 16));
+        lblStatus->setGeometry(QRect(90, 180, 211, 20));
         comboBaud = new QComboBox(Dialog);
         comboBaud->setObjectName(QStringLiteral("comboBaud"));
         comboBaud->setGeometry(QRect(170, 130, 151, 21));
