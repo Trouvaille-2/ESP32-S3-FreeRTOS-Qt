@@ -5,6 +5,9 @@
 #include <QSerialPort>
 #include <QTimer>
 
+#include <QtCharts>
+QT_CHARTS_USE_NAMESPACE
+
 namespace Ui {
 class MainWindow;
 }
@@ -36,6 +39,18 @@ private:
 
     QTimer *m_pollTimer;//50ms轮询定时器
     QByteArray m_rxBuffer;//接收数据缓冲区
+
+    //示波器核心对象
+    QChart *m_chart;  //示波器大画布
+    QChartView *m_chartView; //承载画布的视图控件
+    QLineSeries *m_seriesActualPos;// 实际位置曲线 (蓝色)
+    QLineSeries *m_seriesActualSpd;// 实际转速曲线 (绿色)
+    QValueAxis *m_axisX;           // 横轴：时间轴 (秒)
+    QValueAxis *m_axisYPos;        // 左纵轴：位置轴 (脉冲)
+
+    double m_timeCounter;    //记录当前运行时间
+
+    void initChart();   //示波器初始化函数
 
     //辅助工具函数
     uint16_t calculateCRC(const QByteArray &data);

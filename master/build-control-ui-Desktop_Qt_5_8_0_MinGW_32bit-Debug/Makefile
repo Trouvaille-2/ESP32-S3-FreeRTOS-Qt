@@ -222,6 +222,7 @@ Makefile: ../control-ui/control-ui.pro D:/QT/5.8/mingw53_32/mkspecs/win32-g++/qm
 		D:/QT/5.8/mingw53_32/mkspecs/features/lex.prf \
 		../control-ui/control-ui.pro \
 		D:/QT/5.8/mingw53_32/lib/qtmaind.prl \
+		D:/QT/5.8/mingw53_32/lib/Qt5Charts.prl \
 		D:/QT/5.8/mingw53_32/lib/Qt5Widgets.prl \
 		D:/QT/5.8/mingw53_32/lib/Qt5Gui.prl \
 		D:/QT/5.8/mingw53_32/lib/Qt5SerialPort.prl \
@@ -390,6 +391,7 @@ D:/QT/5.8/mingw53_32/mkspecs/features/yacc.prf:
 D:/QT/5.8/mingw53_32/mkspecs/features/lex.prf:
 ../control-ui/control-ui.pro:
 D:/QT/5.8/mingw53_32/lib/qtmaind.prl:
+D:/QT/5.8/mingw53_32/lib/Qt5Charts.prl:
 D:/QT/5.8/mingw53_32/lib/Qt5Widgets.prl:
 D:/QT/5.8/mingw53_32/lib/Qt5Gui.prl:
 D:/QT/5.8/mingw53_32/lib/Qt5SerialPort.prl:
