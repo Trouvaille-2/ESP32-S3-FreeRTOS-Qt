@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
     if(loginDlg.exec()==QDialog::Accepted)
     {
         MainWindow w;
+         w.initSerial(loginDlg.getSerialPort()); // 👈 把串口交给主界面！
         w.show();
 
         return a.exec();

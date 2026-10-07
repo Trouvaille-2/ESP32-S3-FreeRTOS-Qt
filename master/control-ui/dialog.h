@@ -17,6 +17,8 @@ public:
     explicit Dialog(QWidget *parent = 0);
     ~Dialog();
 
+    QSerialPort* getSerialPort() {return m_serial;}
+
 private slots:
     void on_btnRefresh_clicked();//刷新按钮
     void on_btnConnect_clicked();//连接按钮
