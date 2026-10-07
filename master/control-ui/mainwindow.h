@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QSerialPort>
+#include <QTimer>
 
 namespace Ui {
 class MainWindow;
@@ -26,10 +27,15 @@ private slots:
     void on_btnBrake_clicked();    // 紧急刹车
     void on_btnResetPos_clicked(); // 编码器回零
     void on_comboMode_currentIndexChanged(int index); // 控制模式切换
+    void sendReadRequest();//定时器每50ms触发一次，发送03读指令
+    void onSerialReadyRead();//串口有新数据到达时触发
 
 private:
     Ui::MainWindow *ui;
     QSerialPort *m_serial;//保存传过来的串口指针
+
+    QTimer *m_pollTimer;//50ms轮询定时器
+    QByteArray m_rxBuffer;//接收数据缓冲区
 
     //辅助工具函数
     uint16_t calculateCRC(const QByteArray &data);

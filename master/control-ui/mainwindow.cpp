@@ -25,6 +25,14 @@ void MainWindow::initSerial(QSerialPort *serial)
     if(m_serial && m_serial ->isOpen())
     {
          ui->statusbar->showMessage(QString("✅ 已连接设备: %1").arg(m_serial->portName()));
+
+         //1.当串口接收引脚有新数据进来时，立刻通知onSerialReadyRead处理
+         connect(m_serial,&QSerialPort::readyRead,this,&MainWindow::onSerialReadyRead);
+
+         //2.启动50ms定时器，每50毫秒自动问单片机要一次数据
+         m_pollTimer = new QTimer(this);
+         connect(m_pollTimer,&QTimer::timeout,this,&MainWindow::sendReadRequest);
+         m_pollTimer->start(50);//50ms
     }
 }
 
@@ -106,3 +114,83 @@ void MainWindow::on_comboMode_currentIndexChanged(int index)
     ui->statusbar->showMessage(QString("⚙️ 模式已切换为：%1").arg(ui->comboMode->currentText()));
 }
 
+//定时向单片机发问：读取0x0004~0x000B(共8个寄存器：目标，实际位置，转速，PWM，误差)
+void MainWindow::sendReadRequest()
+{
+    if(!m_serial || !m_serial->isOpen())
+    {
+        return;
+    }
+
+    QByteArray frame;
+    frame.append((char)0x01); // 1. 从机地址 (0x01)
+        frame.append((char)0x03); // 2. 功能码 0x03 (读保持寄存器)
+        frame.append((char)0x00); // 3. 起始地址高字节 (0x00)
+        frame.append((char)0x04); // 4. 起始地址低字节 (从 0x0004 开始读)
+        frame.append((char)0x00); // 5. 寄存器数量高字节 (0x00)
+        frame.append((char)0x08); // 6. 寄存器数量低字节 (连续读 8 个寄存器)
+
+        // 计算并追加 CRC16
+         uint16_t crc = calculateCRC(frame);
+        frame.append((char)(crc & 0xFF));
+        frame.append((char)((crc >> 8) & 0xFF));
+        // 发送出这一问！
+        m_serial->write(frame);
+}
+
+
+//串口收到单片机的回复数据：解析Modbus报文并刷新左侧LCD屏
+void MainWindow::onSerialReadyRead()
+{
+    //1.把串口硬件缓冲区里收到的字节全拿出来，存进我们的接收蓄水池
+    m_rxBuffer.append(m_serial->readAll());
+
+    //一帧标准的8寄存器回复是21字节（1从机+1功能码+1字节数16+16字节数据+2字节crc）
+    const int FRAME_LEN=21;
+
+    while(m_rxBuffer.size()>=FRAME_LEN)
+    {
+        //帧头校验：如果第1字节不是0x01或者第2字节不是0x03，说明是乱码杂音，滑动丢弃1字节
+        if((uint8_t)m_rxBuffer.at(0)!=0x01 || (uint8_t)m_rxBuffer.at(1)!=0x03)
+        {
+            m_rxBuffer.remove(0,1);
+            continue;
+        }
+
+        //取出整帧数据
+        QByteArray frame = m_rxBuffer.left(FRAME_LEN);
+
+        //校验CRC16
+        uint16_t calcCrc = calculateCRC(frame.left(FRAME_LEN - 2));
+        uint16_t recvCrc = (uint8_t)frame.at(FRAME_LEN - 2) | ((uint8_t)frame.at(FRAME_LEN - 1) << 8);
+
+        if(calcCrc ==recvCrc)
+        {
+            //校验完全正确，开始解剖里面的真实物理数据：
+
+            // 提取实际位置脉冲 (32 位整型，占第 7,8,9,10 字节)
+            uint16_t pos_h = ((uint8_t)frame.at(7) << 8) | (uint8_t)frame.at(8);
+            uint16_t pos_l = ((uint8_t)frame.at(9) << 8) | (uint8_t)frame.at(10);
+            int32_t actual_pos = (int32_t)(((uint32_t)pos_h << 16) | pos_l);
+
+            // ② 提取实际转速 (RPM，第 13,14 字节)
+            int16_t actual_spd = (int16_t)(((uint8_t)frame.at(13) << 8) | (uint8_t)frame.at(14));
+            // ③ 提取 PWM 占空比 (千分比，第 15,16 字节，除以 10 变回百分比)
+            int16_t pwm_raw = (int16_t)(((uint8_t)frame.at(15) << 8) | (uint8_t)frame.at(16));
+            float pwm_duty = (float)pwm_raw / 10.0f;
+            // ④ 提取跟踪误差 (脉冲数，第 17,18 字节)
+            int16_t pos_error = (int16_t)(((uint8_t)frame.at(17) << 8) | (uint8_t)frame.at(18));
+            // 🎯 将最新鲜的数字实时更新到 UI 界面上的 4 个 LCD 屏幕！
+            ui->lblActualPos->display(actual_pos);
+            ui->lblActualSpd->display(actual_spd);
+            ui->lblPwmOutput->display(QString::number(pwm_duty, 'f', 1));
+            ui->lblPosErrot->display(pos_error); // (注意 ui 中控件名是 lblPosErrot)
+
+            //从缓冲区移除已处理的这21字节
+            m_rxBuffer.remove(0,FRAME_LEN);
+        }else{
+            //CRC错误，丢掉第1字节寻找下一个可能帧
+            m_rxBuffer.remove(0,1);
+        }
+    }
+}
