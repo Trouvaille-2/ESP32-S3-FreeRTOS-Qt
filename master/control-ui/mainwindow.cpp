@@ -10,6 +10,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     setWindowTitle("直流伺服双环测控系统");
     resize(1200,750);
+
+    initChart();
 }
 
 MainWindow::~MainWindow()
@@ -186,11 +188,102 @@ void MainWindow::onSerialReadyRead()
             ui->lblPwmOutput->display(QString::number(pwm_duty, 'f', 1));
             ui->lblPosErrot->display(pos_error); // (注意 ui 中控件名是 lblPosErrot)
 
-            //从缓冲区移除已处理的这21字节
-            m_rxBuffer.remove(0,FRAME_LEN);
-        }else{
-            //CRC错误，丢掉第1字节寻找下一个可能帧
-            m_rxBuffer.remove(0,1);
+            // ================= 📈 示波器动态波形推进 =================
+            m_timeCounter += 0.05; // 轮询周期是 50ms (0.05秒)
+            // 1. 给两条曲线追加最新鲜的数据点 (时间点, 实时数值)
+            m_seriesActualPos->append(m_timeCounter, actual_pos);
+            m_seriesActualSpd->append(m_timeCounter, actual_spd);
+            // 2. 心电图自动向右滚动：当时间超过 10 秒后，X 轴窗口跟随当前时间向右平移！
+            if (m_timeCounter > 10.0) {
+                m_axisX->setRange(m_timeCounter - 10.0, m_timeCounter);
+            }
+            // 3. 内存保护：当点数超过 600 个（过去 30 秒的数据）时，自动删掉最老的一个点
+            if (m_seriesActualPos->count() > 600) {
+                m_seriesActualPos->remove(0);
+                m_seriesActualSpd->remove(0);
+            }
+
+            // 实时把反馈值打在目标框下方的 feedback_num 标签上
+            if (ui->comboMode->currentIndex() == 2) {
+                ui->feedback_num->setText(QString("%1 脉冲").arg(actual_pos));
+            } else {
+                ui->feedback_num->setText(QString("%1 RPM").arg(actual_spd));
+            }
+
+            // 从缓冲区移除已处理的这 21 字节
+            m_rxBuffer.remove(0, FRAME_LEN);
+        } else {
+            // CRC错误，丢掉第 1 字节寻找下一个可能帧
+            m_rxBuffer.remove(0, 1);
         }
+    }
+}
+
+void MainWindow::initChart()
+{
+    m_timeCounter = 0.0;
+
+    // 1. 创建两条动态折线
+    m_seriesActualPos = new QLineSeries();
+    m_seriesActualPos->setName("实际位置 (脉冲)");
+    m_seriesActualPos->setPen(QPen(QColor(0, 122, 255), 2)); // 科技蓝，线宽 2
+
+    m_seriesActualSpd = new QLineSeries();
+    m_seriesActualSpd->setName("实际转速 (RPM)");
+    m_seriesActualSpd->setPen(QPen(QColor(46, 204, 113), 2)); // 荧光绿，线宽 2
+
+    // 2. 创建图表画布并添加曲线
+    m_chart = new QChart();
+    m_chart->addSeries(m_seriesActualPos);
+    m_chart->addSeries(m_seriesActualSpd);
+    m_chart->setTitle("伺服电机实时运动动态波形");
+
+    // 3. 配置坐标轴
+    // X 轴：时间轴 (默认显示过去 10 秒)
+    m_axisX = new QValueAxis();
+    m_axisX->setTitleText("时间 (秒)");
+    m_axisX->setRange(0, 10);
+    m_chart->addAxis(m_axisX, Qt::AlignBottom);
+    m_seriesActualPos->attachAxis(m_axisX);
+    m_seriesActualSpd->attachAxis(m_axisX);
+    // Y 轴：数值轴 (默认范围 -500 ~ +500)
+    m_axisYPos = new QValueAxis();
+    m_axisYPos->setTitleText("幅值");
+    m_axisYPos->setRange(-500, 500);
+    m_chart->addAxis(m_axisYPos, Qt::AlignLeft);
+    m_seriesActualPos->attachAxis(m_axisYPos);
+    m_seriesActualSpd->attachAxis(m_axisYPos);
+    // 4. 创建视图控件，并开启抗锯齿（让曲线极度丝滑平整）
+    m_chartView = new QChartView(m_chart);
+    m_chartView->setRenderHint(QPainter::Antialiasing);
+    // 5. 把做好的示波器画布，装进右侧 3/4 的 widgetChart 容器里！
+    QVBoxLayout *layout = new QVBoxLayout(ui->widgetChart);
+    layout->addWidget(m_chartView);
+    layout->setContentsMargins(0, 0, 0, 0); // 边距贴紧
+
+
+}
+
+// 当用户在设定值输入框输入完毕按回车（或鼠标点到别处）时，自动下发给单片机
+void MainWindow::on_setting_num_editingFinished()
+{
+    int val = ui->setting_num->value();
+    int mode = ui->comboMode->currentIndex(); // 0-开环, 1-单速度, 2-双环
+
+    if (mode == 0) {
+        // 开环模式：下发 PWM 油门 (乘以 10 变成千分比)
+        writeRegister(0x000A, (uint16_t)(val * 10));
+        ui->statusbar->showMessage(QString("🎯 目标已下发：开环占空比 %1 %").arg(val));
+    }
+    else if (mode == 1) {
+        // 单速度模式：下发目标转速 (RPM)
+        writeRegister(REG_TARGET_SPD, (uint16_t)val);
+        ui->statusbar->showMessage(QString("🎯 目标已下发：速度 %1 RPM").arg(val));
+    }
+    else if (mode == 2) {
+        // 位置双环模式：下发 32 位目标脉冲（拆成高 16 位和低 16 位发送）
+        writeRegister(0x0004, (uint16_t)((val >> 16) & 0xFFFF)); // REG_TARGET_POS_H
+        writeRegister(0x0005, (uint16_t)(val & 0xFFFF));         // REG_TARGET_POS_L
+        ui->statusbar->showMessage(QString("🎯 目标已下发：位置 %1 脉冲").arg(val));
     }
 }

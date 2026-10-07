@@ -32,6 +32,7 @@ private slots:
     void on_comboMode_currentIndexChanged(int index); // 控制模式切换
     void sendReadRequest();//定时器每50ms触发一次，发送03读指令
     void onSerialReadyRead();//串口有新数据到达时触发
+     void on_setting_num_editingFinished(); // 当在设定值框里输入完按回车时触发
 
 private:
     Ui::MainWindow *ui;
