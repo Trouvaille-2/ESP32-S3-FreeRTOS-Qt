@@ -25,11 +25,11 @@ void device_init_regs(void)
     device_regs[REG_POS_DEADBAND] = 5; /* 定位死区范围 = 5 脉冲 */
 
     /* 初始化内环环 PID 参数默认值 */
-    device_regs[REG_SPD_KP] = 150; /* 速度环 Kp = 1.50 */
-    device_regs[REG_SPD_KI] = 20;  /* 速度环 Ki = 0.20 */
-    device_regs[REG_SPD_KD] = 5;   /* 速度环 Kd = 0.05 */
+    device_regs[REG_SPD_KP] = 80;  /* 速度环 Kp = 0.80 */
+    device_regs[REG_SPD_KI] = 300; /* 速度环 Ki = 3.00 (强力积分消除静差) */
+    device_regs[REG_SPD_KD] = 0;   /* 速度环 Kd = 0.00 (消除微分抖动) */
     device_regs[REG_SPD_MAX_PWM] = 1000; /* 100%占空比 */
-    device_regs[REG_SPD_MAX_I] = 500; /* 速度环抗积分饱和限幅 = 50.0 ‰ */
+    device_regs[REG_SPD_MAX_I] = 800;   /* 速度环抗积分饱和限幅 = 80.0% */
 
 }
 

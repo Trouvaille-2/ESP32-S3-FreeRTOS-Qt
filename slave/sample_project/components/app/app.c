@@ -159,8 +159,9 @@ static void control_task(void *arg)
         s_spd_pid.out_min = -s_spd_pid.out_max;
 
         float max_i = (float)device_reg_read(REG_SPD_MAX_I) / 10.0f;
-        s_spd_pid.max_integral = (max_i > 5.0f) ? max_i : 50.0f;
+        s_spd_pid.max_integral = (max_i > 5.0f) ? max_i : 80.0f;
         s_spd_pid.min_integral = -s_spd_pid.max_integral;
+        s_spd_pid.deadband = 0.0f; // 速度环死区强制为 0，杜绝速度抖动！
 
         // 准备目标变量和输出变量
         float output_duty = 0.0f; // 最终输出给电机的占空比

@@ -49,16 +49,18 @@ float PID_update(PID_t *p, float feedback, float dt,float setpoint)
     p->setpoint=setpoint;
     p->error = p->setpoint - p->feedback;
     
-    if(fabsf(p->error)<=p->deadband)
+    if(p->deadband > 0.001f && fabsf(p->error) <= p->deadband)
     {
-        p->error = 0.0f;
-        p->integral = 0.0f;   /* 进入死区后清除积分*/
+        p->error = 0.0f; // 处于死区内：停止 P/D 扰动，保持稳态
+    }
+    else
+    {
+        p->integral += p->error * dt; // 死区外：正常积分累加
     }
 
-    float p_out=p->Kp * p->error;
+    float p_out = p->Kp * p->error;
 
-    p->integral += p->error * dt;
-     if (p->integral > p->max_integral) {
+    if (p->integral > p->max_integral) {
         p->integral = p->max_integral;
     } else if (p->integral < p->min_integral) {
         p->integral = p->min_integral;
