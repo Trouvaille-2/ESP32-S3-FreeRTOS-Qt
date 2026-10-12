@@ -5,6 +5,7 @@
 #include "pid.h"      // PID算法库
 #include "motor.h"    // 电机驱动与仿真
 #include "esp_log.h"
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -17,27 +18,62 @@ static void modbus_task(void *arg)
 {
     uint8_t buf[256];
     uint8_t rep[256];
+    int buf_len = 0;
 
     while(1)
     {
-        // 阻塞等待帧头到达 (超时 100ms)
-        int n = uart_read(buf, 1, 100);
-        if (n <= 0) continue;
-
-        // 读到首字节后，快速吸纳剩余整帧 (Modbus 3.5 字符静默期: 15ms 判定一帧结束)
-        int len = 1;
-        while (len < (int)sizeof(buf))
+        uint8_t temp[64];
+        int n = uart_read(temp, sizeof(temp), 10);
+        if (n > 0)
         {
-            int more = uart_read(buf + len, sizeof(buf) - len, 15);
-            if (more <= 0) break; // 超过 15ms 无新数据，一帧完整接收
-            len += more;
+            if (buf_len + n < (int)sizeof(buf))
+            {
+                memcpy(buf + buf_len, temp, n);
+                buf_len += n;
+            }
+            else
+            {
+                buf_len = 0; // 溢出保护
+            }
         }
 
-        // 送入 Modbus-RTU 状态机进行 CRC16 校验与功能码处理
-        int rep_len = modbus_slave_process(buf, len, rep);
-        if (rep_len > 0)
+        // 解析缓冲区中的 Modbus 帧 (支持多帧连续并发解析，彻底杜绝粘包丢失)
+        while (buf_len >= 8)
         {
-            uart_write(rep, rep_len);
+            // 找合法的从机地址 (0x01)
+            if (buf[0] != 0x01)
+            {
+                // 非法头，滑动 1 字节丢弃
+                buf_len--;
+                memmove(buf, buf + 1, buf_len);
+                continue;
+            }
+
+            // 判断功能码与帧长：0x03 和 0x06 请求都是固定 8 字节
+            int expected_len = 8;
+            if (buf[1] == 0x10 && buf_len >= 7)
+            {
+                expected_len = 7 + buf[6] + 2;
+            }
+
+            if (buf_len < expected_len)
+            {
+                break; // 数据还没收全，等待后续字节
+            }
+
+            // 送入 Modbus 处理
+            int rep_len = modbus_slave_process(buf, expected_len, rep);
+            if (rep_len > 0)
+            {
+                uart_write(rep, rep_len);
+            }
+
+            // 从缓冲区移除已处理的帧
+            buf_len -= expected_len;
+            if (buf_len > 0)
+            {
+                memmove(buf, buf + expected_len, buf_len);
+            }
         }
     }
 }
@@ -65,7 +101,9 @@ static void control_task(void *arg)
         if(cmd == 3)
         {
             motor_clear_encoder();
-            device_reg_write(REG_CTRL_CMD, 0); // 搞定后回到停止状态
+            device_reg_write_int32(REG_ACTUAL_POS_H, 0);
+            device_reg_write(REG_ACTUAL_SPD, 0);
+            device_reg_write(REG_CTRL_CMD, 0); // 回零后回到停止状态
             cmd = 0;
         }
 
@@ -108,13 +146,20 @@ static void control_task(void *arg)
         s_pos_pid.out_min  = -s_pos_pid.out_max;
         s_pos_pid.deadband = (float)device_reg_read(REG_POS_DEADBAND);    // 定位死区 (比如 5 个脉冲)
 
-        // 速度内环参数：
-        s_spd_pid.Kp           = (float)device_reg_read(REG_SPD_KP) / 100.0f;
-        s_spd_pid.Ki           = (float)device_reg_read(REG_SPD_KI) / 100.0f;
-        s_spd_pid.Kd           = (float)device_reg_read(REG_SPD_KD) / 100.0f;
-        s_spd_pid.out_max      = (float)device_reg_read(REG_SPD_MAX_PWM) / 10.0f; // 1000‰ -> 100.0%
-        s_spd_pid.out_min      = -s_spd_pid.out_max;
-        s_spd_pid.max_integral = (float)device_reg_read(REG_SPD_MAX_I) / 10.0f;   // 抗积分饱和
+        // 速度内环参数 (带自动安全兜底，杜绝因未配置导致零增益)：
+        float spd_kp = (float)device_reg_read(REG_SPD_KP) / 100.0f;
+        s_spd_pid.Kp = (spd_kp > 0.01f) ? spd_kp : 1.50f;
+        float spd_ki = (float)device_reg_read(REG_SPD_KI) / 100.0f;
+        s_spd_pid.Ki = (spd_ki > 0.001f) ? spd_ki : 0.20f;
+        float spd_kd = (float)device_reg_read(REG_SPD_KD) / 100.0f;
+        s_spd_pid.Kd = (spd_kd > 0.001f) ? spd_kd : 0.05f;
+
+        float max_pwm = (float)device_reg_read(REG_SPD_MAX_PWM) / 10.0f;
+        s_spd_pid.out_max = (max_pwm > 10.0f) ? max_pwm : 100.0f;
+        s_spd_pid.out_min = -s_spd_pid.out_max;
+
+        float max_i = (float)device_reg_read(REG_SPD_MAX_I) / 10.0f;
+        s_spd_pid.max_integral = (max_i > 5.0f) ? max_i : 50.0f;
         s_spd_pid.min_integral = -s_spd_pid.max_integral;
 
         // 准备目标变量和输出变量

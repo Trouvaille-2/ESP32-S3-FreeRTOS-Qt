@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QMessageBox>
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -130,7 +131,9 @@ void MainWindow::on_btnBrake_clicked()
 void MainWindow::on_btnResetPos_clicked()
 {
     writeRegister(REG_CTRL_CMD, 3); // 把 0x0000 寄存器改成 3
-    ui->statusbar->showMessage("🔄 指令已发送：编码器位置清零");
+    m_seriesActualPos->clear();
+    m_axisYPos->setRange(-200, 1000); // 坐标轴复位回 0~1000 标准视窗
+    ui->statusbar->showMessage("🔄 指令已发送：编码器位置清零并重置视窗");
 }
 // 切换【模式下拉框】
 void MainWindow::on_comboMode_currentIndexChanged(int index)
@@ -143,6 +146,18 @@ void MainWindow::on_comboMode_currentIndexChanged(int index)
     m_seriesActualSpd->clear();
     m_timeCounter = 0;
     m_axisX->setRange(0, 10);
+
+    // 智能更新推荐数值与单步步长
+    if (index == 0) {
+        ui->setting_num->setValue(50);
+        ui->label_2->setText("设定值 (%)");
+    } else if (index == 1) {
+        ui->setting_num->setValue(200);
+        ui->label_2->setText("设定值 (RPM)");
+    } else if (index == 2) {
+        ui->setting_num->setValue(1320);
+        ui->label_2->setText("设定值 (脉冲)");
+    }
 }
 
 // 切换【运行环境下拉框】：0-软件物理仿真 (写1), 1-硬件实物电机 (写0)
@@ -343,18 +358,33 @@ void MainWindow::on_setting_num_editingFinished()
 
     if (mode == 0) {
         // 开环模式：下发 PWM 油门 (乘以 10 变成千分比)
+        if (qAbs(val) > 100) {
+            val = (val > 0) ? 100 : -100;
+            ui->setting_num->setValue(val);
+            QMessageBox::warning(this, "占空比超限警告", "开环输出占空比最大为 ±100%，已自动修正！");
+        }
         writeRegister(0x000A, (uint16_t)(val * 10));
-        ui->statusbar->showMessage(QString("🎯 目标已下发：开环占空比 %1 %").arg(val));
+        ui->statusbar->showMessage(QString("🎯 目标已下发并自动使能：开环占空比 %1 %").arg(val));
     }
     else if (mode == 1) {
-        // 单速度模式：下发目标转速 (RPM)
+        // 单速度模式：下发目标转速 (RPM)，电机的硬件额定上限为 ±330 RPM
+        if (qAbs(val) > 330) {
+            int safeVal = (val > 0) ? 330 : -330;
+            ui->setting_num->setValue(safeVal);
+            QMessageBox::warning(this, "⚠️ 转速超限警告", 
+                QString("您设定的转速 [%1 RPM] 已经超过电机额定上限 (±330 RPM)！\n\n为保护电机与机械传动结构，系统已自动限制为安全极值 [%2 RPM]。").arg(val).arg(safeVal));
+            val = safeVal;
+        }
         writeRegister(REG_TARGET_SPD, (uint16_t)val);
-        ui->statusbar->showMessage(QString("🎯 目标已下发：速度 %1 RPM").arg(val));
+        ui->statusbar->showMessage(QString("🎯 目标已下发并自动使能：速度 %1 RPM").arg(val));
     }
     else if (mode == 2) {
         // 位置双环模式：下发 32 位目标脉冲（拆成高 16 位和低 16 位发送）
         writeRegister(0x0004, (uint16_t)((val >> 16) & 0xFFFF)); // REG_TARGET_POS_H
         writeRegister(0x0005, (uint16_t)(val & 0xFFFF));         // REG_TARGET_POS_L
-        ui->statusbar->showMessage(QString("🎯 目标已下发：位置 %1 脉冲").arg(val));
+        ui->statusbar->showMessage(QString("🎯 目标已下发并自动使能：位置 %1 脉冲").arg(val));
     }
+
+    // 🚀 核心保障：自动将电机切换至使能运行状态 (无需额外手动点击使能)
+    writeRegister(REG_CTRL_CMD, 1);
 }

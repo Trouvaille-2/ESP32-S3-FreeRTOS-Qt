@@ -9,8 +9,8 @@ void device_init_regs(void)
     memset(device_regs, 0, sizeof(device_regs));
 
     /* 初始化寄存器默认值 */
-    device_regs[REG_CTRL_CMD] = 0; /* 默认停止 */
-    device_regs[REG_CTRL_MODE] = 2; /* 默认双环 */
+    device_regs[REG_CTRL_CMD] = 1; /* 默认使能运行 (启动即就绪) */
+    device_regs[REG_CTRL_MODE] = 1; /* 默认单速度闭环模式 */
     device_regs[REG_SYS_STATUS] = 0; 
     device_regs[REG_ERR_CODE] = 0; /* 默认正常 */
     device_regs[REG_RUN_ENV] = 1;  /* 默认开启软件在环物理仿真模式 (0=实物, 1=仿真) */
