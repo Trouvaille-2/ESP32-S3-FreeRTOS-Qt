@@ -34,6 +34,10 @@ private slots:
     void sendReadRequest();//定时器每50ms触发一次，发送03读指令
     void onSerialReadyRead();//串口有新数据到达时触发
     void on_setting_num_editingFinished(); // 当在设定值框里输入完按回车时触发
+    void on_kp_box_editingFinished();
+    void on_ki_box_editingFinished();
+    void on_kd_box_editingFinished();
+    void on_imax_box_editingFinished();
 
 private:
     Ui::MainWindow *ui;
@@ -66,6 +70,13 @@ private:
     static const uint16_t REG_TARGET_POS_L = 0x0005; // 目标位置低16位
     static const uint16_t REG_TARGET_SPD   = 0x0008; // 期望速度 (RPM)
     static const uint16_t REG_RUN_ENV      = 0x000C; // 运行环境: 0-硬件实物电机, 1-软件物理仿真
+
+    // 速度环 PID 寄存器
+    static const uint16_t REG_SPD_KP       = 0x0020;
+    static const uint16_t REG_SPD_KI       = 0x0021;
+    static const uint16_t REG_SPD_KD       = 0x0022;
+    static const uint16_t REG_SPD_MAX_PWM  = 0x0023;
+    static const uint16_t REG_SPD_MAX_I    = 0x0024;
 };
 
 #endif // MAINWINDOW_H

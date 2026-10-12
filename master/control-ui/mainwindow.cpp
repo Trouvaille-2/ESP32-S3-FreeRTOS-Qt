@@ -18,10 +18,19 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setting_num->setValue(200);
 
     ui->kp_box->setRange(0, 10000);
+    ui->kp_box->setValue(80); // 对应 Kp = 0.80
+
     ui->ki_box->setRange(0, 10000);
+    ui->ki_box->setValue(300); // 对应 Ki = 3.00 (积分消除静差)
+
     ui->kd_box->setRange(0, 10000);
+    ui->kd_box->setValue(0); // 速度环 Kd = 0.00 (避免高频抖动)
+
     ui->imax_box->setRange(0, 10000);
+    ui->imax_box->setValue(80);
+
     ui->imin_box->setRange(0, 10000);
+    ui->imin_box->setValue(0);
 
     // 🎨 工控高对比度液晶屏黑底荧光绿数码管样式
     QString lcdStyle = "QLCDNumber { background-color: #121820; color: #00ff66; border: 1px solid #2a3b4c; border-radius: 3px; }";
@@ -58,6 +67,11 @@ void MainWindow::initSerial(QSerialPort *serial)
          //3. 初始化向单片机同步运行环境 (默认 SIL 软件仿真)
          uint16_t envVal = (ui->comboEnv->currentIndex() == 0) ? 1 : 0;
          writeRegister(REG_RUN_ENV, envVal);
+
+         //4. 初始化下发最优速度环 PID 参数
+         writeRegister(REG_SPD_KP, (uint16_t)ui->kp_box->value());
+         writeRegister(REG_SPD_KI, (uint16_t)ui->ki_box->value());
+         writeRegister(REG_SPD_KD, (uint16_t)ui->kd_box->value());
     }
 }
 
@@ -405,4 +419,28 @@ void MainWindow::on_setting_num_editingFinished()
 
     // 🚀 核心保障：自动将电机切换至使能运行状态 (无需额外手动点击使能)
     writeRegister(REG_CTRL_CMD, 1);
+}
+
+void MainWindow::on_kp_box_editingFinished()
+{
+    writeRegister(REG_SPD_KP, (uint16_t)ui->kp_box->value());
+    ui->statusbar->showMessage(QString("🔧 速度环 Kp 已更新: %1").arg((float)ui->kp_box->value() / 100.0f));
+}
+
+void MainWindow::on_ki_box_editingFinished()
+{
+    writeRegister(REG_SPD_KI, (uint16_t)ui->ki_box->value());
+    ui->statusbar->showMessage(QString("🔧 速度环 Ki 已更新: %1").arg((float)ui->ki_box->value() / 100.0f));
+}
+
+void MainWindow::on_kd_box_editingFinished()
+{
+    writeRegister(REG_SPD_KD, (uint16_t)ui->kd_box->value());
+    ui->statusbar->showMessage(QString("🔧 速度环 Kd 已更新: %1").arg((float)ui->kd_box->value() / 100.0f));
+}
+
+void MainWindow::on_imax_box_editingFinished()
+{
+    writeRegister(REG_SPD_MAX_I, (uint16_t)(ui->imax_box->value() * 10));
+    ui->statusbar->showMessage(QString("🔧 速度环 Imax 已更新: %1").arg(ui->imax_box->value()));
 }

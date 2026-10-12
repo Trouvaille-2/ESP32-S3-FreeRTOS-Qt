@@ -180,6 +180,8 @@ static void control_task(void *arg)
             target_spd = (float)(int16_t)device_reg_read(REG_TARGET_SPD);
             // 速度环计算输出占空比
             output_duty = PID_update(&s_spd_pid, actual_spd, dt, target_spd);
+            // 更新当前转速误差 (供上位机监视器查看稳态误差收敛过程)
+            device_reg_write(REG_POS_ERROR, (int16_t)(target_spd - actual_spd));
         }
         /* 模式 2：位置-速度双环串级闭环模式 */
         else if(mode == 2)
