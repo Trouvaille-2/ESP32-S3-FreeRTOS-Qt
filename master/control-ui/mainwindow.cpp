@@ -151,12 +151,18 @@ void MainWindow::on_comboMode_currentIndexChanged(int index)
     if (index == 0) {
         ui->setting_num->setValue(50);
         ui->label_2->setText("设定值 (%)");
+        m_seriesActualPos->setVisible(false);
+        m_axisYPos->setVisible(false);
     } else if (index == 1) {
         ui->setting_num->setValue(200);
         ui->label_2->setText("设定值 (RPM)");
+        m_seriesActualPos->setVisible(false);
+        m_axisYPos->setVisible(false);
     } else if (index == 2) {
         ui->setting_num->setValue(1320);
         ui->label_2->setText("设定值 (脉冲)");
+        m_seriesActualPos->setVisible(true);
+        m_axisYPos->setVisible(true);
     }
 }
 
@@ -248,19 +254,29 @@ void MainWindow::onSerialReadyRead()
             // ================= 📈 示波器动态波形推进 =================
             m_timeCounter += 0.05; // 轮询周期是 50ms (0.05秒)
 
-            // 1. 双 Y 轴独立量程自适应 (两条曲线永远同时呈现，互不挤压)
-            m_seriesActualPos->setVisible(true);
-            m_seriesActualSpd->setVisible(true);
+            // 1. 智能曲线展示：模式 0 和模式 1 隐藏蓝线专注速度；模式 2 展开双环同屏
+            int mode = ui->comboMode->currentIndex();
+            if (mode == 0 || mode == 1) {
+                // 速度/开环模式：隐藏位置蓝线与左轴，清爽专注转速波形！
+                m_seriesActualPos->setVisible(false);
+                m_axisYPos->setVisible(false);
 
-            // 左 Y 轴自适应包裹位置脉冲 (蓝线)
-            qreal currentMaxPos = qAbs((qreal)actual_pos);
-            if (currentMaxPos > m_axisYPos->max() * 0.9) {
-                qreal newLimit = currentMaxPos * 1.3;
+                m_seriesActualSpd->setVisible(true);
+                m_axisYSpd->setVisible(true);
+            } else {
+                // 位置双环模式：同时展现蓝线(位置)与绿线(转速)，双轴联动！
+                m_seriesActualPos->setVisible(true);
+                m_axisYPos->setVisible(true);
+
+                m_seriesActualSpd->setVisible(true);
+                m_axisYSpd->setVisible(true);
+
+                // 左 Y 轴智能自适应目标位置与实际位置
+                qreal targetPosAbs = qAbs((qreal)ui->setting_num->value());
+                qreal currentMaxPos = qMax(qAbs((qreal)actual_pos), targetPosAbs);
+                qreal newLimit = qMax((qreal)1500.0, currentMaxPos * 1.25);
                 m_axisYPos->setRange(-newLimit * 0.1, newLimit);
             }
-
-            // 右 Y 轴固定在适合电机的转速区间 (绿线，-400 ~ +400 RPM)
-            // 绿线永远饱满，绝不会被几万脉冲的蓝线挤压贴地！
 
             // 2. 给两条曲线追加数据点
             m_seriesActualPos->append(m_timeCounter, actual_pos);
@@ -347,7 +363,9 @@ void MainWindow::initChart()
     layout->addWidget(m_chartView);
     layout->setContentsMargins(0, 0, 0, 0); // 边距贴紧
 
-
+    // 默认进入单速度模式时，先隐藏位置蓝线与左轴，专心看转速波形
+    m_seriesActualPos->setVisible(false);
+    m_axisYPos->setVisible(false);
 }
 
 // 当用户在设定值输入框输入完毕按回车（或鼠标点到别处）时，自动下发给单片机
