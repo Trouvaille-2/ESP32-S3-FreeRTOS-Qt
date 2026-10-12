@@ -44,6 +44,8 @@ public:
     QPushButton *btnStop;
     QPushButton *btnBrake;
     QPushButton *btnResetPos;
+    QLabel *labelEnv;
+    QComboBox *comboEnv;
     QGroupBox *groupBox_2;
     QLabel *label_2;
     QLabel *label_3;
@@ -109,6 +111,12 @@ public:
         btnResetPos = new QPushButton(groupBox);
         btnResetPos->setObjectName(QStringLiteral("btnResetPos"));
         btnResetPos->setGeometry(QRect(190, 80, 93, 28));
+        labelEnv = new QLabel(groupBox);
+        labelEnv->setObjectName(QStringLiteral("labelEnv"));
+        labelEnv->setGeometry(QRect(0, 115, 72, 20));
+        comboEnv = new QComboBox(groupBox);
+        comboEnv->setObjectName(QStringLiteral("comboEnv"));
+        comboEnv->setGeometry(QRect(90, 115, 190, 24));
 
         verticalLayout->addWidget(groupBox);
 
@@ -239,6 +247,12 @@ public:
         btnStop->setText(QApplication::translate("MainWindow", "\346\255\243\345\270\270\345\201\234\346\255\242", Q_NULLPTR));
         btnBrake->setText(QApplication::translate("MainWindow", "\347\264\247\346\200\245\345\210\271\350\275\246", Q_NULLPTR));
         btnResetPos->setText(QApplication::translate("MainWindow", "\347\274\226\347\240\201\345\231\250\345\233\236\351\233\266", Q_NULLPTR));
+        labelEnv->setText(QApplication::translate("MainWindow", "\350\277\220\350\241\214\347\216\257\345\242\203", Q_NULLPTR));
+        comboEnv->clear();
+        comboEnv->insertItems(0, QStringList()
+         << QApplication::translate("MainWindow", "\360\237\226\245\357\270\217 \350\275\257\344\273\266\345\234\250\347\216\257\347\211\251\347\220\206\344\273\277\347\234\237", Q_NULLPTR)
+         << QApplication::translate("MainWindow", "\342\232\231\357\270\217 \347\241\254\344\273\266\345\256\236\347\211\251\347\224\265\346\234\272\345\234\250\347\272\277", Q_NULLPTR)
+        );
         groupBox_2->setTitle(QApplication::translate("MainWindow", "\350\277\220\345\212\250\347\233\256\346\240\207\344\270\213\345\217\221", Q_NULLPTR));
         label_2->setText(QApplication::translate("MainWindow", "\350\256\276\345\256\232\345\200\274", Q_NULLPTR));
         label_3->setText(QApplication::translate("MainWindow", "\345\217\215\351\246\210\345\200\274", Q_NULLPTR));

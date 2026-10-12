@@ -243,3 +243,8 @@ esp_err_t motor_init(const motor_config_t *config)
              s_cfg.pwm_pin, s_cfg.in1_pin, s_cfg.in2_pin);
     return ESP_OK; // 初始化完成！
 }
+
+void motor_set_simulation_mode(bool enable)
+{
+    s_cfg.simulation_mode = enable;
+}

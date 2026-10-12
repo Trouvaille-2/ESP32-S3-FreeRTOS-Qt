@@ -21,8 +21,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_MainWindow_t {
-    QByteArrayData data[10];
-    char stringdata0[168];
+    QByteArrayData data[12];
+    char stringdata0[231];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -39,15 +39,19 @@ QT_MOC_LITERAL(4, 52, 19), // "on_btnBrake_clicked"
 QT_MOC_LITERAL(5, 72, 22), // "on_btnResetPos_clicked"
 QT_MOC_LITERAL(6, 95, 32), // "on_comboMode_currentIndexChanged"
 QT_MOC_LITERAL(7, 128, 5), // "index"
-QT_MOC_LITERAL(8, 134, 15), // "sendReadRequest"
-QT_MOC_LITERAL(9, 150, 17) // "onSerialReadyRead"
+QT_MOC_LITERAL(8, 134, 31), // "on_comboEnv_currentIndexChanged"
+QT_MOC_LITERAL(9, 166, 15), // "sendReadRequest"
+QT_MOC_LITERAL(10, 182, 17), // "onSerialReadyRead"
+QT_MOC_LITERAL(11, 200, 30) // "on_setting_num_editingFinished"
 
     },
     "MainWindow\0on_btnEnable_clicked\0\0"
     "on_btnStop_clicked\0on_btnBrake_clicked\0"
     "on_btnResetPos_clicked\0"
     "on_comboMode_currentIndexChanged\0index\0"
-    "sendReadRequest\0onSerialReadyRead"
+    "on_comboEnv_currentIndexChanged\0"
+    "sendReadRequest\0onSerialReadyRead\0"
+    "on_setting_num_editingFinished"
 };
 #undef QT_MOC_LITERAL
 
@@ -57,7 +61,7 @@ static const uint qt_meta_data_MainWindow[] = {
        7,       // revision
        0,       // classname
        0,    0, // classinfo
-       7,   14, // methods
+       9,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -65,13 +69,15 @@ static const uint qt_meta_data_MainWindow[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags
-       1,    0,   49,    2, 0x08 /* Private */,
-       3,    0,   50,    2, 0x08 /* Private */,
-       4,    0,   51,    2, 0x08 /* Private */,
-       5,    0,   52,    2, 0x08 /* Private */,
-       6,    1,   53,    2, 0x08 /* Private */,
-       8,    0,   56,    2, 0x08 /* Private */,
-       9,    0,   57,    2, 0x08 /* Private */,
+       1,    0,   59,    2, 0x08 /* Private */,
+       3,    0,   60,    2, 0x08 /* Private */,
+       4,    0,   61,    2, 0x08 /* Private */,
+       5,    0,   62,    2, 0x08 /* Private */,
+       6,    1,   63,    2, 0x08 /* Private */,
+       8,    1,   66,    2, 0x08 /* Private */,
+       9,    0,   69,    2, 0x08 /* Private */,
+      10,    0,   70,    2, 0x08 /* Private */,
+      11,    0,   71,    2, 0x08 /* Private */,
 
  // slots: parameters
     QMetaType::Void,
@@ -79,6 +85,8 @@ static const uint qt_meta_data_MainWindow[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void, QMetaType::Int,    7,
+    QMetaType::Void, QMetaType::Int,    7,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
 
@@ -96,8 +104,10 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 2: _t->on_btnBrake_clicked(); break;
         case 3: _t->on_btnResetPos_clicked(); break;
         case 4: _t->on_comboMode_currentIndexChanged((*reinterpret_cast< int(*)>(_a[1]))); break;
-        case 5: _t->sendReadRequest(); break;
-        case 6: _t->onSerialReadyRead(); break;
+        case 5: _t->on_comboEnv_currentIndexChanged((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 6: _t->sendReadRequest(); break;
+        case 7: _t->onSerialReadyRead(); break;
+        case 8: _t->on_setting_num_editingFinished(); break;
         default: ;
         }
     }
@@ -128,13 +138,13 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 7)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 7;
+        _id -= 9;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 7)
+        if (_id < 9)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 7;
+        _id -= 9;
     }
     return _id;
 }

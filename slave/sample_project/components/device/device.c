@@ -13,6 +13,7 @@ void device_init_regs(void)
     device_regs[REG_CTRL_MODE] = 2; /* 默认双环 */
     device_regs[REG_SYS_STATUS] = 0; 
     device_regs[REG_ERR_CODE] = 0; /* 默认正常 */
+    device_regs[REG_RUN_ENV] = 1;  /* 默认开启软件在环物理仿真模式 (0=实物, 1=仿真) */
 
     device_reg_write_int32(REG_TARGET_POS_H, 0); /* 默认目标位置为 0 */
 

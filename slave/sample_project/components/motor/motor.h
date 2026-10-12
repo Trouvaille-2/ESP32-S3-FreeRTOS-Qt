@@ -30,4 +30,6 @@ void motor_brake(void);
 
 void motor_clear_encoder(void);
 
+void motor_set_simulation_mode(bool enable);
+
 #endif

@@ -16,27 +16,28 @@ static PID_t s_spd_pid; // 速度内环
 static void modbus_task(void *arg)
 {
     uint8_t buf[256];
-    int idx = 0;
-    uint32_t last = 0;
+    uint8_t rep[256];
 
     while(1)
     {
-        uint8_t byte;
-        int n = uart_read(&byte, 1, 5);
-        if(n > 0)
+        // 阻塞等待帧头到达 (超时 100ms)
+        int n = uart_read(buf, 1, 100);
+        if (n <= 0) continue;
+
+        // 读到首字节后，快速吸纳剩余整帧 (Modbus 3.5 字符静默期: 15ms 判定一帧结束)
+        int len = 1;
+        while (len < (int)sizeof(buf))
         {
-            buf[idx++] = byte;
-            last = xTaskGetTickCount();
+            int more = uart_read(buf + len, sizeof(buf) - len, 15);
+            if (more <= 0) break; // 超过 15ms 无新数据，一帧完整接收
+            len += more;
         }
-        else if(idx > 0 && (xTaskGetTickCount() - last) >= pdMS_TO_TICKS(5))
+
+        // 送入 Modbus-RTU 状态机进行 CRC16 校验与功能码处理
+        int rep_len = modbus_slave_process(buf, len, rep);
+        if (rep_len > 0)
         {
-            uint8_t rep[256];
-            int len = modbus_slave_process(buf, idx, rep);
-            if (len > 0)
-            {
-                uart_write(rep, len);
-            }
-            idx = 0;
+            uart_write(rep, rep_len);
         }
     }
 }
@@ -51,6 +52,10 @@ static void control_task(void *arg)
     {
         // 1. 绝对精准定点唤醒
         vTaskDelayUntil(&last_wake_time, period_ticks);
+
+        // 动态同步运行环境：0=实物硬件模式, 1=软件在环仿真模式
+        uint16_t env = device_reg_read(REG_RUN_ENV);
+        motor_set_simulation_mode(env == 1);
 
         // 2. 读当前控制指令与运行模式
         uint16_t cmd  = device_reg_read(REG_CTRL_CMD);  // 控制字：0=停止，1=使能，2=刹车，3=回零
@@ -158,6 +163,9 @@ static void control_task(void *arg)
 
 void app_init(void)
 {
+    // 降低日志级别，避免系统日志污染 Type-C USB 上的 Modbus-RTU 纯二进制通信
+    esp_log_level_set("*", ESP_LOG_WARN);
+
     // 1. 初始化 48 个寄存器数据中心
     device_init_regs();
 

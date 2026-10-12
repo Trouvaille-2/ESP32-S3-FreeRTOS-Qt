@@ -30,9 +30,10 @@ private slots:
     void on_btnBrake_clicked();    // 紧急刹车
     void on_btnResetPos_clicked(); // 编码器回零
     void on_comboMode_currentIndexChanged(int index); // 控制模式切换
+    void on_comboEnv_currentIndexChanged(int index);  // 运行环境切换 (仿真 / 实物)
     void sendReadRequest();//定时器每50ms触发一次，发送03读指令
     void onSerialReadyRead();//串口有新数据到达时触发
-     void on_setting_num_editingFinished(); // 当在设定值框里输入完按回车时触发
+    void on_setting_num_editingFinished(); // 当在设定值框里输入完按回车时触发
 
 private:
     Ui::MainWindow *ui;
@@ -47,7 +48,8 @@ private:
     QLineSeries *m_seriesActualPos;// 实际位置曲线 (蓝色)
     QLineSeries *m_seriesActualSpd;// 实际转速曲线 (绿色)
     QValueAxis *m_axisX;           // 横轴：时间轴 (秒)
-    QValueAxis *m_axisYPos;        // 左纵轴：位置轴 (脉冲)
+    QValueAxis *m_axisYPos;        // 左纵轴：位置轴 (脉冲) - 对应蓝色曲线
+    QValueAxis *m_axisYSpd;        // 右纵轴：转速轴 (RPM)  - 对应绿色曲线
 
     double m_timeCounter;    //记录当前运行时间
 
@@ -58,9 +60,12 @@ private:
     void writeRegister(uint16_t reg,uint16_t val);//发送Modbus 0x06写寄存器
 
     // 常用寄存器地址宏（和单片机完全一致）
-    static const uint16_t REG_CTRL_CMD  = 0x0000; // 控制字: 0-停止, 1-使能, 2-刹车, 3-回零
-    static const uint16_t REG_CTRL_MODE = 0x0001; // 模式: 0-开环, 1-单速度, 2-双环
-
+    static const uint16_t REG_CTRL_CMD     = 0x0000; // 控制字: 0-停止, 1-使能, 2-刹车, 3-回零
+    static const uint16_t REG_CTRL_MODE    = 0x0001; // 模式: 0-开环, 1-单速度, 2-双环
+    static const uint16_t REG_TARGET_POS_H = 0x0004; // 目标位置高16位
+    static const uint16_t REG_TARGET_POS_L = 0x0005; // 目标位置低16位
+    static const uint16_t REG_TARGET_SPD   = 0x0008; // 期望速度 (RPM)
+    static const uint16_t REG_RUN_ENV      = 0x000C; // 运行环境: 0-硬件实物电机, 1-软件物理仿真
 };
 
 #endif // MAINWINDOW_H

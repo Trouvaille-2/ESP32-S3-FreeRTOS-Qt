@@ -11,6 +11,24 @@ MainWindow::MainWindow(QWidget *parent) :
     setWindowTitle("直流伺服双环测控系统");
     resize(1200,750);
 
+    // 解除数值范围限制，支持工业伺服大脉冲与转速
+    ui->setting_num->setRange(-100000, 100000);
+    ui->setting_num->setSingleStep(100);
+    ui->setting_num->setValue(200);
+
+    ui->kp_box->setRange(0, 10000);
+    ui->ki_box->setRange(0, 10000);
+    ui->kd_box->setRange(0, 10000);
+    ui->imax_box->setRange(0, 10000);
+    ui->imin_box->setRange(0, 10000);
+
+    // 🎨 工控高对比度液晶屏黑底荧光绿数码管样式
+    QString lcdStyle = "QLCDNumber { background-color: #121820; color: #00ff66; border: 1px solid #2a3b4c; border-radius: 3px; }";
+    ui->lblActualPos->setStyleSheet(lcdStyle);
+    ui->lblActualSpd->setStyleSheet(lcdStyle);
+    ui->lblPwmOutput->setStyleSheet(lcdStyle);
+    ui->lblPosErrot->setStyleSheet(lcdStyle);
+
     initChart();
 }
 
@@ -35,6 +53,10 @@ void MainWindow::initSerial(QSerialPort *serial)
          m_pollTimer = new QTimer(this);
          connect(m_pollTimer,&QTimer::timeout,this,&MainWindow::sendReadRequest);
          m_pollTimer->start(50);//50ms
+
+         //3. 初始化向单片机同步运行环境 (默认 SIL 软件仿真)
+         uint16_t envVal = (ui->comboEnv->currentIndex() == 0) ? 1 : 0;
+         writeRegister(REG_RUN_ENV, envVal);
     }
 }
 
@@ -69,7 +91,7 @@ void MainWindow::writeRegister(uint16_t reg, uint16_t val)
     frame.append((char)((reg>>8)&0xFF));//3.寄存器地址高字节
     frame.append((char)(reg&0xff));//4.寄存器地址低字节
     frame.append((char)((val>>8)&0xFF));//5.写入数值高字节
-    frame.append((char)(reg&0xFF));//6.写入数值低字节
+    frame.append((char)(val&0xFF));//6.写入数值低字节
 
     //7.计算并追加CRC16
     uint16_t crc=calculateCRC(frame);
@@ -78,6 +100,7 @@ void MainWindow::writeRegister(uint16_t reg, uint16_t val)
 
     //8.真正通过物理串口发射出去
     m_serial->write(frame);
+    m_serial->flush();
 }
 
 /*按钮点击事件*/
@@ -85,9 +108,9 @@ void MainWindow::writeRegister(uint16_t reg, uint16_t val)
 //点击[使能运行]
 void MainWindow::on_btnEnable_clicked()
 {
-    writeRegister(REG_CTRL_CMD,1);//把0x0000寄存器改成1
-    ui->statusbar->showMessage("🟢 指令已发送：使能运行");
-
+    writeRegister(REG_CTRL_CMD, 1);//把0x0000寄存器改成1
+    on_setting_num_editingFinished(); // 强行下发当前输入框里的设定目标！
+    ui->statusbar->showMessage("🟢 指令已发送：使能运行并下发目标");
 }
 
 //点击[正常停止]
@@ -114,6 +137,24 @@ void MainWindow::on_comboMode_currentIndexChanged(int index)
 {
     writeRegister(REG_CTRL_MODE, index); // 把 0x0001 寄存器改成选中的索引 (0/1/2)
     ui->statusbar->showMessage(QString("⚙️ 模式已切换为：%1").arg(ui->comboMode->currentText()));
+
+    // 切换模式时清空示波器波形，从 0 秒重新绘制，防止量程剧烈跳变
+    m_seriesActualPos->clear();
+    m_seriesActualSpd->clear();
+    m_timeCounter = 0;
+    m_axisX->setRange(0, 10);
+}
+
+// 切换【运行环境下拉框】：0-软件物理仿真 (写1), 1-硬件实物电机 (写0)
+void MainWindow::on_comboEnv_currentIndexChanged(int index)
+{
+    uint16_t envVal = (index == 0) ? 1 : 0;
+    writeRegister(REG_RUN_ENV, envVal);
+    if (envVal == 1) {
+        ui->statusbar->showMessage("🖥️ 系统已切换至：软件在环物理仿真模式 (SIL)");
+    } else {
+        ui->statusbar->showMessage("⚙️ 系统已切换至：真实硬件电机在线控制模式");
+    }
 }
 
 //定时向单片机发问：读取0x0004~0x000B(共8个寄存器：目标，实际位置，转速，PWM，误差)
@@ -138,6 +179,7 @@ void MainWindow::sendReadRequest()
         frame.append((char)((crc >> 8) & 0xFF));
         // 发送出这一问！
         m_serial->write(frame);
+        m_serial->flush();
 }
 
 
@@ -190,14 +232,31 @@ void MainWindow::onSerialReadyRead()
 
             // ================= 📈 示波器动态波形推进 =================
             m_timeCounter += 0.05; // 轮询周期是 50ms (0.05秒)
-            // 1. 给两条曲线追加最新鲜的数据点 (时间点, 实时数值)
+
+            // 1. 双 Y 轴独立量程自适应 (两条曲线永远同时呈现，互不挤压)
+            m_seriesActualPos->setVisible(true);
+            m_seriesActualSpd->setVisible(true);
+
+            // 左 Y 轴自适应包裹位置脉冲 (蓝线)
+            qreal currentMaxPos = qAbs((qreal)actual_pos);
+            if (currentMaxPos > m_axisYPos->max() * 0.9) {
+                qreal newLimit = currentMaxPos * 1.3;
+                m_axisYPos->setRange(-newLimit * 0.1, newLimit);
+            }
+
+            // 右 Y 轴固定在适合电机的转速区间 (绿线，-400 ~ +400 RPM)
+            // 绿线永远饱满，绝不会被几万脉冲的蓝线挤压贴地！
+
+            // 2. 给两条曲线追加数据点
             m_seriesActualPos->append(m_timeCounter, actual_pos);
             m_seriesActualSpd->append(m_timeCounter, actual_spd);
-            // 2. 心电图自动向右滚动：当时间超过 10 秒后，X 轴窗口跟随当前时间向右平移！
+
+            // 3. 心电图自动向右滚动：当时间超过 10 秒后，X 轴窗口跟随当前时间向右平移！
             if (m_timeCounter > 10.0) {
                 m_axisX->setRange(m_timeCounter - 10.0, m_timeCounter);
             }
-            // 3. 内存保护：当点数超过 600 个（过去 30 秒的数据）时，自动删掉最老的一个点
+
+            // 4. 内存保护：保留最近 600 个点 (30秒数据)
             if (m_seriesActualPos->count() > 600) {
                 m_seriesActualPos->remove(0);
                 m_seriesActualSpd->remove(0);
@@ -238,22 +297,34 @@ void MainWindow::initChart()
     m_chart->addSeries(m_seriesActualSpd);
     m_chart->setTitle("伺服电机实时运动动态波形");
 
-    // 3. 配置坐标轴
-    // X 轴：时间轴 (默认显示过去 10 秒)
+    // 3. 配置双 Y 轴坐标系
+    // X 轴：时间轴 (默认显示 10 秒视窗)
     m_axisX = new QValueAxis();
     m_axisX->setTitleText("时间 (秒)");
     m_axisX->setRange(0, 10);
     m_chart->addAxis(m_axisX, Qt::AlignBottom);
     m_seriesActualPos->attachAxis(m_axisX);
     m_seriesActualSpd->attachAxis(m_axisX);
-    // Y 轴：数值轴 (默认范围 -500 ~ +500)
+
+    // 左 Y 轴：专门显示实际位置脉冲 (科技蓝)
     m_axisYPos = new QValueAxis();
-    m_axisYPos->setTitleText("幅值");
-    m_axisYPos->setRange(-500, 500);
+    m_axisYPos->setTitleText("位置 (脉冲)");
+    m_axisYPos->setLinePenColor(QColor(0, 122, 255));
+    m_axisYPos->setLabelsColor(QColor(0, 122, 255));
+    m_axisYPos->setRange(-200, 1000);
     m_chart->addAxis(m_axisYPos, Qt::AlignLeft);
     m_seriesActualPos->attachAxis(m_axisYPos);
-    m_seriesActualSpd->attachAxis(m_axisYPos);
-    // 4. 创建视图控件，并开启抗锯齿（让曲线极度丝滑平整）
+
+    // 右 Y 轴：专门显示实际转速 (荧光绿)
+    m_axisYSpd = new QValueAxis();
+    m_axisYSpd->setTitleText("转速 (RPM)");
+    m_axisYSpd->setLinePenColor(QColor(46, 204, 113));
+    m_axisYSpd->setLabelsColor(QColor(46, 204, 113));
+    m_axisYSpd->setRange(-400, 400); // 电机额定 330 RPM，固定范围视觉效果最佳
+    m_chart->addAxis(m_axisYSpd, Qt::AlignRight);
+    m_seriesActualSpd->attachAxis(m_axisYSpd);
+
+    // 4. 创建视图控件，开启抗锯齿
     m_chartView = new QChartView(m_chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
     // 5. 把做好的示波器画布，装进右侧 3/4 的 widgetChart 容器里！

@@ -122,6 +122,39 @@
            <string>编码器回零</string>
           </property>
          </widget>
+          <widget class="QLabel" name="labelEnv">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>115</y>
+             <width>72</width>
+             <height>20</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>运行环境</string>
+           </property>
+          </widget>
+          <widget class="QComboBox" name="comboEnv">
+           <property name="geometry">
+            <rect>
+             <x>90</x>
+             <y>115</y>
+             <width>190</width>
+             <height>24</height>
+            </rect>
+           </property>
+           <item>
+            <property name="text">
+             <string>🖥️ 软件在环物理仿真</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>⚙️ 硬件实物电机在线</string>
+            </property>
+           </item>
+          </widget>
         </widget>
        </item>
        <item>
