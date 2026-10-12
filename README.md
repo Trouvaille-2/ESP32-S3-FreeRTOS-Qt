@@ -5,9 +5,8 @@
 - 🔗 **B站高清视频演示**：[点击前往观看 (60fps)](【花了两天时间用qt为我的单片机项目做了个适配上位机】 https://www.bilibili.com/video/BV1DRpR6YEQg/?share_source=copy_web&vd_source=2d98364ddbde0ca7ad44d9d15b291ace)
 - 📱 **移动端扫码观看**：
 
-<p align="left">
-  <img src="docs/bilibili_qr.png" width="160" alt="B站演示二维码" />
-</p>
+<img width="140" height="144" alt="979fec73bcaf9cf383853f38c409db60" src="https://github.com/user-attachments/assets/14e0adf4-e26b-4b46-abf2-c18d197ccd79" />
+
 
 > **视频核心工况展示**：
 > - **阶段 1：单速度闭环 (0~20s)**：200 RPM 阶跃响应，稳态无静差巡航与平滑刹停；
