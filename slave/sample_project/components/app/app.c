@@ -223,14 +223,14 @@ void app_init(void)
 
     // 3. 配置电机参数
     motor_config_t mcfg = {
-        .pwm_pin   = 15, // PWMA 引脚
-        .in1_pin   = 16, // AIN1 引脚
-        .in2_pin   = 17, // AIN2 引脚
-        .stby_pin  = 18, // STBY 待机引脚
-        .enc_a_pin = 4,  // 编码器 A 相
-        .enc_b_pin = 5,  // 编码器 B 相
-        .ppr       = 330,// 减速后输出轴每转总脉冲 330
-        .simulation_mode = true, // ✅ 软件在环仿真开关开启！
+        .pwm_pin   = 6,  // PWMA: GPIO 6
+        .in1_pin   = 7,  // AIN1: GPIO 7
+        .in2_pin   = 8,  // AIN2: GPIO 8
+        .stby_pin  = -1, // STBY: 硬件已直连 3.3V
+        .enc_a_pin = 4,  // 编码器 A 相: GPIO 4
+        .enc_b_pin = 5,  // 编码器 B 相: GPIO 5
+        .ppr       = 1320,// 威恒 JGB37-520 输出轴一圈 1320 脉冲
+        .simulation_mode = true, // ✅ 软件在环仿真开关保持默认开启！
     };
     motor_init(&mcfg);
 

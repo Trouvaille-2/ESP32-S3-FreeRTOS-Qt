@@ -14,23 +14,23 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // 解除数值范围限制，支持工业伺服大脉冲与转速
     ui->setting_num->setRange(-100000, 100000);
-    ui->setting_num->setSingleStep(100);
-    ui->setting_num->setValue(200);
+    ui->setting_num->setSingleStep(10);
+    ui->setting_num->setValue(10);
 
     ui->kp_box->setRange(0, 10000);
-    ui->kp_box->setValue(80); // 对应 Kp = 0.80
+    ui->kp_box->setValue(10); // 默认 10
 
     ui->ki_box->setRange(0, 10000);
-    ui->ki_box->setValue(300); // 对应 Ki = 3.00 (积分消除静差)
+    ui->ki_box->setValue(10); // 默认 10
 
     ui->kd_box->setRange(0, 10000);
-    ui->kd_box->setValue(0); // 速度环 Kd = 0.00 (避免高频抖动)
+    ui->kd_box->setValue(10); // 默认 10
 
     ui->imax_box->setRange(0, 10000);
-    ui->imax_box->setValue(80);
+    ui->imax_box->setValue(10); // 默认 10
 
     ui->imin_box->setRange(0, 10000);
-    ui->imin_box->setValue(0);
+    ui->imin_box->setValue(10); // 默认 10
 
     // 🎨 工控高对比度液晶屏黑底荧光绿数码管样式
     QString lcdStyle = "QLCDNumber { background-color: #121820; color: #00ff66; border: 1px solid #2a3b4c; border-radius: 3px; }";
@@ -163,17 +163,17 @@ void MainWindow::on_comboMode_currentIndexChanged(int index)
 
     // 智能更新推荐数值与单步步长
     if (index == 0) {
-        ui->setting_num->setValue(50);
+        ui->setting_num->setValue(10);
         ui->label_2->setText("设定值 (%)");
         m_seriesActualPos->setVisible(false);
         m_axisYPos->setVisible(false);
     } else if (index == 1) {
-        ui->setting_num->setValue(200);
+        ui->setting_num->setValue(10);
         ui->label_2->setText("设定值 (RPM)");
         m_seriesActualPos->setVisible(false);
         m_axisYPos->setVisible(false);
     } else if (index == 2) {
-        ui->setting_num->setValue(1320);
+        ui->setting_num->setValue(10);
         ui->label_2->setText("设定值 (脉冲)");
         m_seriesActualPos->setVisible(true);
         m_axisYPos->setVisible(true);

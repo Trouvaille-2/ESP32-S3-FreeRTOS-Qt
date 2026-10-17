@@ -152,12 +152,7 @@ esp_err_t motor_init(const motor_config_t *config)
     s_sim_speed_rpm = 0.0f;
     s_applied_duty = 0.0f;
 
-    //如果开启了纯软件仿真模式，则不初始化硬件
-    if(s_cfg.simulation_mode)
-    {
-        ESP_LOGW(TAG,"motor_init: simulation mode enabled, hardware not initialized");
-        return ESP_OK;
-    }
+    // 无论初始是否为仿真模式，硬件外设必须全部就绪，确保随时无缝切换真机！
 
     /*真实硬件外设初始化*/
 
