@@ -64,9 +64,10 @@ void MainWindow::initSerial(QSerialPort *serial)
          connect(m_pollTimer,&QTimer::timeout,this,&MainWindow::sendReadRequest);
          m_pollTimer->start(50);//50ms
 
-         //3. 初始化向单片机同步运行环境 (默认 SIL 软件仿真)
+         //3. 初始化向单片机同步运行环境与控制模式
          uint16_t envVal = (ui->comboEnv->currentIndex() == 0) ? 1 : 0;
          writeRegister(REG_RUN_ENV, envVal);
+         writeRegister(REG_CTRL_MODE, ui->comboMode->currentIndex());
 
          //4. 初始化下发最优速度环 PID 参数
          writeRegister(REG_SPD_KP, (uint16_t)ui->kp_box->value());
@@ -124,6 +125,7 @@ void MainWindow::writeRegister(uint16_t reg, uint16_t val)
 void MainWindow::on_btnEnable_clicked()
 {
     m_isPaused = false; // 恢复时间轴推进
+    writeRegister(REG_CTRL_MODE, ui->comboMode->currentIndex()); // 确保单片机模式与上位机下拉框100%一致
     writeRegister(REG_CTRL_CMD, 1);//把0x0000寄存器改成1
     on_setting_num_editingFinished(); // 强行下发当前输入框里的设定目标！
     ui->statusbar->showMessage("🟢 指令已发送：使能运行并下发目标");
@@ -313,10 +315,12 @@ void MainWindow::onSerialReadyRead()
             }
 
             // 实时把反馈值打在目标框下方的 feedback_num 标签上
-            if (ui->comboMode->currentIndex() == 2) {
-                ui->feedback_num->setText(QString("%1 脉冲").arg(actual_pos));
-            } else {
+            if (ui->comboMode->currentIndex() == 0) {
+                ui->feedback_num->setText(QString("%1 RPM (PWM: %2%)").arg(actual_spd).arg(pwm_duty, 0, 'f', 1));
+            } else if (ui->comboMode->currentIndex() == 1) {
                 ui->feedback_num->setText(QString("%1 RPM").arg(actual_spd));
+            } else {
+                ui->feedback_num->setText(QString("%1 脉冲").arg(actual_pos));
             }
 
             // 从缓冲区移除已处理的这 21 字节
@@ -423,8 +427,9 @@ void MainWindow::on_setting_num_editingFinished()
         ui->statusbar->showMessage(QString("🎯 目标已下发并自动使能：位置 %1 脉冲").arg(val));
     }
 
-    // 🚀 核心保障：自动将电机切换至使能运行状态 (无需额外手动点击使能)
+    // 🚀 核心保障：自动同步控制模式，并切换至使能运行状态
     m_isPaused = false;
+    writeRegister(REG_CTRL_MODE, mode);
     writeRegister(REG_CTRL_CMD, 1);
 }
 
