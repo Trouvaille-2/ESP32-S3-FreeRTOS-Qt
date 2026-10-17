@@ -123,6 +123,7 @@ void MainWindow::writeRegister(uint16_t reg, uint16_t val)
 //点击[使能运行]
 void MainWindow::on_btnEnable_clicked()
 {
+    m_isPaused = false; // 恢复时间轴推进
     writeRegister(REG_CTRL_CMD, 1);//把0x0000寄存器改成1
     on_setting_num_editingFinished(); // 强行下发当前输入框里的设定目标！
     ui->statusbar->showMessage("🟢 指令已发送：使能运行并下发目标");
@@ -131,15 +132,17 @@ void MainWindow::on_btnEnable_clicked()
 //点击[正常停止]
 void MainWindow::on_btnStop_clicked()
 {
+    m_isPaused = true; // 停止时间轴推进，波形冻结便于观察！
     writeRegister(REG_CTRL_CMD, 0); // 把 0x0000 寄存器改成 0
-        ui->statusbar->showMessage("🟡 指令已发送：正常停止");
+    ui->statusbar->showMessage("🟡 指令已发送：正常停止 (示波器已暂停)");
 }
 
 // 点击【紧急刹车】
 void MainWindow::on_btnBrake_clicked()
 {
+    m_isPaused = true; // 刹车时时间轴同样冻结
     writeRegister(REG_CTRL_CMD, 2); // 把 0x0000 寄存器改成 2
-    ui->statusbar->showMessage("🔴 指令已发送：紧急短路刹车");
+    ui->statusbar->showMessage("🔴 指令已发送：紧急短路刹车 (示波器已暂停)");
 }
 // 点击【编码器回零】
 void MainWindow::on_btnResetPos_clicked()
@@ -266,45 +269,47 @@ void MainWindow::onSerialReadyRead()
             ui->lblPosErrot->display(pos_error); // (注意 ui 中控件名是 lblPosErrot)
 
             // ================= 📈 示波器动态波形推进 =================
-            m_timeCounter += 0.05; // 轮询周期是 50ms (0.05秒)
+            if (!m_isPaused) {
+                m_timeCounter += 0.05; // 轮询周期是 50ms (0.05秒)
 
-            // 1. 智能曲线展示：模式 0 和模式 1 隐藏蓝线专注速度；模式 2 展开双环同屏
-            int mode = ui->comboMode->currentIndex();
-            if (mode == 0 || mode == 1) {
-                // 速度/开环模式：隐藏位置蓝线与左轴，清爽专注转速波形！
-                m_seriesActualPos->setVisible(false);
-                m_axisYPos->setVisible(false);
+                // 1. 智能曲线展示：模式 0 和模式 1 隐藏蓝线专注速度；模式 2 展开双环同屏
+                int mode = ui->comboMode->currentIndex();
+                if (mode == 0 || mode == 1) {
+                    // 速度/开环模式：隐藏位置蓝线与左轴，清爽专注转速波形！
+                    m_seriesActualPos->setVisible(false);
+                    m_axisYPos->setVisible(false);
 
-                m_seriesActualSpd->setVisible(true);
-                m_axisYSpd->setVisible(true);
-            } else {
-                // 位置双环模式：同时展现蓝线(位置)与绿线(转速)，双轴联动！
-                m_seriesActualPos->setVisible(true);
-                m_axisYPos->setVisible(true);
+                    m_seriesActualSpd->setVisible(true);
+                    m_axisYSpd->setVisible(true);
+                } else {
+                    // 位置双环模式：同时展现蓝线(位置)与绿线(转速)，双轴联动！
+                    m_seriesActualPos->setVisible(true);
+                    m_axisYPos->setVisible(true);
 
-                m_seriesActualSpd->setVisible(true);
-                m_axisYSpd->setVisible(true);
+                    m_seriesActualSpd->setVisible(true);
+                    m_axisYSpd->setVisible(true);
 
-                // 左 Y 轴智能自适应目标位置与实际位置
-                qreal targetPosAbs = qAbs((qreal)ui->setting_num->value());
-                qreal currentMaxPos = qMax(qAbs((qreal)actual_pos), targetPosAbs);
-                qreal newLimit = qMax((qreal)1500.0, currentMaxPos * 1.25);
-                m_axisYPos->setRange(-newLimit * 0.1, newLimit);
-            }
+                    // 左 Y 轴智能自适应目标位置与实际位置
+                    qreal targetPosAbs = qAbs((qreal)ui->setting_num->value());
+                    qreal currentMaxPos = qMax(qAbs((qreal)actual_pos), targetPosAbs);
+                    qreal newLimit = qMax((qreal)1500.0, currentMaxPos * 1.25);
+                    m_axisYPos->setRange(-newLimit * 0.1, newLimit);
+                }
 
-            // 2. 给两条曲线追加数据点
-            m_seriesActualPos->append(m_timeCounter, actual_pos);
-            m_seriesActualSpd->append(m_timeCounter, actual_spd);
+                // 2. 给两条曲线追加数据点
+                m_seriesActualPos->append(m_timeCounter, actual_pos);
+                m_seriesActualSpd->append(m_timeCounter, actual_spd);
 
-            // 3. 心电图自动向右滚动：当时间超过 10 秒后，X 轴窗口跟随当前时间向右平移！
-            if (m_timeCounter > 10.0) {
-                m_axisX->setRange(m_timeCounter - 10.0, m_timeCounter);
-            }
+                // 3. 心电图自动向右滚动：当时间超过 10 秒后，X 轴窗口跟随当前时间向右平移！
+                if (m_timeCounter > 10.0) {
+                    m_axisX->setRange(m_timeCounter - 10.0, m_timeCounter);
+                }
 
-            // 4. 内存保护：保留最近 600 个点 (30秒数据)
-            if (m_seriesActualPos->count() > 600) {
-                m_seriesActualPos->remove(0);
-                m_seriesActualSpd->remove(0);
+                // 4. 内存保护：保留最近 600 个点 (30秒数据)
+                if (m_seriesActualPos->count() > 600) {
+                    m_seriesActualPos->remove(0);
+                    m_seriesActualSpd->remove(0);
+                }
             }
 
             // 实时把反馈值打在目标框下方的 feedback_num 标签上
@@ -326,6 +331,7 @@ void MainWindow::onSerialReadyRead()
 void MainWindow::initChart()
 {
     m_timeCounter = 0.0;
+    m_isPaused = false;
 
     // 1. 创建两条动态折线
     m_seriesActualPos = new QLineSeries();
@@ -418,6 +424,7 @@ void MainWindow::on_setting_num_editingFinished()
     }
 
     // 🚀 核心保障：自动将电机切换至使能运行状态 (无需额外手动点击使能)
+    m_isPaused = false;
     writeRegister(REG_CTRL_CMD, 1);
 }
 

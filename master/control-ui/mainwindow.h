@@ -56,6 +56,7 @@ private:
     QValueAxis *m_axisYSpd;        // 右纵轴：转速轴 (RPM)  - 对应绿色曲线
 
     double m_timeCounter;    //记录当前运行时间
+    bool m_isPaused;         // 时间轴是否暂停 (停机/刹车时暂停推进)
 
     void initChart();   //示波器初始化函数
 
