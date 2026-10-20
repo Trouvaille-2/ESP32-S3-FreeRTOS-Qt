@@ -18,6 +18,7 @@ static int32_t s_last_raw_count = 0;//上一次读到的硬件计数
 /* 3. 软件仿真状态变量 (仿真模式用) */
 static float s_sim_speed_rpm = 0.0f;    // 仿真当前转速
 static float s_applied_duty = 0.0f;     // 记录当前下发的占空比
+static float s_filtered_rpm = 0.0f;     // 硬件实物转速一阶低通滤波平滑值
 
 void motor_set_output(float duty_percent)
 {
@@ -113,8 +114,10 @@ float motor_get_speed_rpm(float dt)//接受控制周期，返回当前电机的�
     s_last_raw_count = cur_count;
     s_accumulated_pulse += delta; //累加总脉冲
 
-    float rpm = (float)delta / (float)s_cfg.ppr * 60.0f / dt; //计算转速
-    return rpm;
+    float raw_rpm = (float)delta / (float)s_cfg.ppr * 60.0f / dt; //计算原始瞬时转速
+    // 一阶低通平滑滤波：消除 10ms 采样离散量化抖动与电刷微火花杂音，输出平滑优美的物理转速
+    s_filtered_rpm = 0.25f * raw_rpm + 0.75f * s_filtered_rpm;
+    return s_filtered_rpm;
 }
 
 //获取当前电机的32位累计位置脉冲
@@ -128,6 +131,7 @@ void motor_clear_encoder(void)
 {
     s_accumulated_pulse = 0;
     s_last_raw_count = 0;
+    s_filtered_rpm = 0.0f;
 
     //底层的PCNT硬件计数器也清零
     if(!s_cfg.simulation_mode && s_pcnt_unit != NULL)
@@ -151,6 +155,7 @@ esp_err_t motor_init(const motor_config_t *config)
     s_last_raw_count = 0;
     s_sim_speed_rpm = 0.0f;
     s_applied_duty = 0.0f;
+    s_filtered_rpm = 0.0f;
 
     // 无论初始是否为仿真模式，硬件外设必须全部就绪，确保随时无缝切换真机！
 
@@ -228,6 +233,16 @@ esp_err_t motor_init(const motor_config_t *config)
     pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
     pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE);
     pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
+
+    // 为编码器引脚开启内部弱上拉，消除信号边沿漂移
+    gpio_set_pull_mode(s_cfg.enc_a_pin, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(s_cfg.enc_b_pin, GPIO_PULLUP_ONLY);
+
+    // 开启硬件防毛刺滤波器，过滤小于 1000ns 的电刷与 PWM 斩波火花杂波
+    pcnt_glitch_filter_config_t filter_config = {
+        .max_glitch_ns = 1000,
+    };
+    pcnt_unit_set_glitch_filter(s_pcnt_unit, &filter_config);
 
     //使能并启动计数器
     pcnt_unit_enable(s_pcnt_unit);

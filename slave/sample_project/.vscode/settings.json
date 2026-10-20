@@ -37,6 +37,6 @@
   "idf.flashType": "UART",
   "idf.port": "COM4",
   "python.analysis.extraPaths": [
-    "C:\\Users\\trouvaille-2\\.kendryte\\k230_canmv_stubs\\2d060bef54b161c3ac65a1c4c1e2789d4ea8a544"
+    "C:\\Users\\trouvaille-2\\.kendryte\\k230_canmv_stubs\\e2182e860ac978d8a3e1334ebf4bc4fcfa564af1"
   ]
 }
